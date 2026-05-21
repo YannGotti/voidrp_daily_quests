@@ -74,6 +74,11 @@ public final class QuestStorage {
         if (state != null) persist(uuid, state);
     }
 
+    public void reload() {
+        saveAll();
+        cache.clear();
+    }
+
     // -------------------------------------------------------------------------
 
     private PlayerQuestState loadOrCreate(UUID uuid) {

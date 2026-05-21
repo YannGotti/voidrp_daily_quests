@@ -6,15 +6,21 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import ru.voidrp.dailyquests.gui.QuestGui;
+import ru.voidrp.dailyquests.player.DeliveryQuestStorage;
+import ru.voidrp.dailyquests.player.HardQuestStorage;
 import ru.voidrp.dailyquests.player.PlayerQuestState;
 import ru.voidrp.dailyquests.player.QuestStorage;
 
 public final class DailyQuestCommand implements CommandExecutor {
 
-    private final QuestStorage storage;
+    private final QuestStorage         storage;
+    private final HardQuestStorage     hard;
+    private final DeliveryQuestStorage delivery;
 
-    public DailyQuestCommand(QuestStorage storage) {
-        this.storage = storage;
+    public DailyQuestCommand(QuestStorage storage, HardQuestStorage hard, DeliveryQuestStorage delivery) {
+        this.storage  = storage;
+        this.hard     = hard;
+        this.delivery = delivery;
     }
 
     @Override
@@ -39,10 +45,22 @@ public final class DailyQuestCommand implements CommandExecutor {
             return true;
         }
         if (args.length == 0) {
-            sender.sendMessage("§eИспользование: /dqadmin <reload|reset <player>|info <player>>");
+            sender.sendMessage("§eИспользование: /dqadmin reload | reset <player> | info <player>");
             return true;
         }
         switch (args[0].toLowerCase()) {
+            case "reload" -> {
+                storage.reload();
+                hard.reload();
+                delivery.reload();
+                // re-load online players
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    storage.ensureToday(p.getUniqueId());
+                    hard.ensureCurrentPeriod(p.getUniqueId());
+                    delivery.ensureCurrentPeriod(p.getUniqueId());
+                }
+                sender.sendMessage("§aПлагин квестов перезагружен — данные сброшены из памяти и перечитаны с диска.");
+            }
             case "reset" -> {
                 if (args.length < 2) { sender.sendMessage("§e/dqadmin reset <player>"); return true; }
                 Player target = Bukkit.getPlayerExact(args[1]);

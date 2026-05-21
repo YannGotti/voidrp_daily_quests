@@ -8,6 +8,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -16,10 +17,13 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import ru.voidrp.dailyquests.gui.QuestGui;
+import ru.voidrp.dailyquests.player.DeliveryQuestStorage;
+import ru.voidrp.dailyquests.player.HardQuestStorage;
 import ru.voidrp.dailyquests.player.PlayerQuestState;
 import ru.voidrp.dailyquests.player.QuestStorage;
 import ru.voidrp.dailyquests.quest.ActiveQuest;
 import ru.voidrp.dailyquests.quest.QuestType;
+import ru.voidrp.dailyquests.tracker.QuestTracker;
 
 import java.util.Arrays;
 import java.util.List;
@@ -27,16 +31,22 @@ import java.util.logging.Logger;
 
 public final class QuestProgressListener implements Listener {
 
-    private final QuestStorage storage;
+    private final QuestStorage         storage;
+    private final HardQuestStorage     hard;
+    private final DeliveryQuestStorage delivery;
     private final Economy economy;
     private final String newQuestsMsg;
     private final String questCompleteMsg;
     private final Logger log;
 
-    public QuestProgressListener(QuestStorage storage, Economy economy,
+    public QuestProgressListener(QuestStorage storage, HardQuestStorage hard,
+                                  DeliveryQuestStorage delivery,
+                                  Economy economy,
                                   String newQuestsMsg, String questCompleteMsg,
                                   Logger log) {
         this.storage          = storage;
+        this.hard             = hard;
+        this.delivery         = delivery;
         this.economy          = economy;
         this.newQuestsMsg     = newQuestsMsg;
         this.questCompleteMsg = questCompleteMsg;
@@ -130,6 +140,16 @@ public final class QuestProgressListener implements Listener {
         e.setCancelled(true);
 
         int slot = e.getRawSlot();
+
+        // Shift+Click on quest item slot = toggle tracker
+        int[] questSlots = {10, 13, 16};
+        for (int i = 0; i < questSlots.length; i++) {
+            if (questSlots[i] == slot && e.getClick() == ClickType.SHIFT_LEFT) {
+                QuestTracker.toggle(player, QuestTracker.Mode.DAILY, storage, hard, delivery);
+                return;
+            }
+        }
+
         int[] claimSlots = QuestGui.claimSlots();
         int questIndex = -1;
         for (int i = 0; i < claimSlots.length; i++) {
@@ -150,8 +170,9 @@ public final class QuestProgressListener implements Listener {
         player.giveExp(q.expReward);
         player.sendMessage("§a§l✦ §aНаграда получена! §6+" + (int) q.moneyReward + " монет §7+ §b" + q.expReward + " опыта");
 
-        // Refresh GUI
+        // Refresh GUI + tracker
         player.openInventory(QuestGui.build(state.quests));
+        QuestTracker.refresh(player, storage, hard, delivery);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

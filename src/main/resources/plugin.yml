@@ -22,6 +22,14 @@ commands:
     description: Администрирование испытаний
     usage: /bqadmin <reset <player>|info <player>>
     permission: voidrp.dailyquests.admin
+  delivery:
+    description: Открыть задание Торговца Артефактами
+    usage: /delivery
+    aliases: [del, торговец]
+  questtrack:
+    description: Закрепить/открепить квест на экране
+    usage: /questtrack
+    aliases: [qt, track]
 
 permissions:
   voidrp.dailyquests.admin:

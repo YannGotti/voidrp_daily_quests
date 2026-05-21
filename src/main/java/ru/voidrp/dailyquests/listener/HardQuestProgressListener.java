@@ -15,25 +15,36 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.inventory.ClickType;
 import ru.voidrp.dailyquests.gui.HardQuestGui;
+import ru.voidrp.dailyquests.player.DeliveryQuestStorage;
 import ru.voidrp.dailyquests.player.HardQuestStorage;
 import ru.voidrp.dailyquests.player.PlayerQuestState;
+import ru.voidrp.dailyquests.player.QuestStorage;
 import ru.voidrp.dailyquests.quest.ActiveQuest;
 import ru.voidrp.dailyquests.quest.QuestType;
+import ru.voidrp.dailyquests.tracker.QuestTracker;
 
 import java.util.logging.Logger;
 
 public final class HardQuestProgressListener implements Listener {
 
-    private final HardQuestStorage storage;
+    private final HardQuestStorage     storage;
+    private final QuestStorage         daily;
+    private final DeliveryQuestStorage delivery;
     private final Economy economy;
     private final Logger log;
 
     private static final String NEW_QUEST_MSG =
         "§4§l⚔ §cНовое Испытание Героя доступно! §4§l⚔ §7Используй /bq";
 
-    public HardQuestProgressListener(HardQuestStorage storage, Economy economy, Logger log) {
+    public HardQuestProgressListener(HardQuestStorage storage,
+                                     QuestStorage daily,
+                                     DeliveryQuestStorage delivery,
+                                     Economy economy, Logger log) {
         this.storage  = storage;
+        this.daily    = daily;
+        this.delivery = delivery;
         this.economy  = economy;
         this.log      = log;
     }
@@ -125,6 +136,12 @@ public final class HardQuestProgressListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player player)) return;
         if (!HardQuestGui.TITLE.equals(e.getView().getTitle())) return;
         e.setCancelled(true);
+
+        // Shift+Click на слоте квеста — переключить трекер
+        if (e.getRawSlot() == HardQuestGui.QUEST_SLOT && e.getClick() == ClickType.SHIFT_LEFT) {
+            QuestTracker.toggle(player, QuestTracker.Mode.HARD, daily, storage, delivery);
+            return;
+        }
 
         if (e.getRawSlot() != HardQuestGui.CLAIM_SLOT) return;
 

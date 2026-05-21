@@ -57,6 +57,7 @@ public final class QuestGui {
         lore.add("");
         lore.add("§7Награда: §6" + (int) q.moneyReward + " монет §7+ §b" + q.expReward + " опыта");
         lore.add("§8§m──────────────────");
+        lore.add("§8Shift+ЛКМ — закрепить на экране");
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;

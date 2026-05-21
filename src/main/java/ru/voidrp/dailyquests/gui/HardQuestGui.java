@@ -66,6 +66,7 @@ public final class HardQuestGui {
         if (!q.rewardClaimed && q.isCompleted()) {
             lore.add("§a§l» Нажмите CLAIM для награды «");
         }
+        lore.add("§8Shift+ЛКМ — закрепить на экране");
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;

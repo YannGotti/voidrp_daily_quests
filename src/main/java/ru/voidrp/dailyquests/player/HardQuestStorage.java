@@ -71,6 +71,11 @@ public final class HardQuestStorage {
         if (s != null) persist(uuid, s);
     }
 
+    public void reload() {
+        saveAll();
+        cache.clear();
+    }
+
     /** Days until next reset for display purposes. */
     public static int daysUntilReset() {
         long daysSinceEpoch = ChronoUnit.DAYS.between(LocalDate.EPOCH, LocalDate.now());
