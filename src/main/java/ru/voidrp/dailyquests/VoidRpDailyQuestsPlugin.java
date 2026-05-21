@@ -6,9 +6,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import ru.voidrp.dailyquests.command.BossQuestCommand;
 import ru.voidrp.dailyquests.command.DailyQuestCommand;
+import ru.voidrp.dailyquests.listener.HardQuestProgressListener;
 import ru.voidrp.dailyquests.listener.NpcInteractListener;
 import ru.voidrp.dailyquests.listener.QuestProgressListener;
+import ru.voidrp.dailyquests.player.HardQuestStorage;
 import ru.voidrp.dailyquests.player.QuestStorage;
 
 import java.nio.file.Path;
@@ -17,86 +20,89 @@ import java.util.List;
 
 public final class VoidRpDailyQuestsPlugin extends JavaPlugin {
 
-    private QuestStorage storage;
+    private QuestStorage     dailyStorage;
+    private HardQuestStorage hardStorage;
     private Economy economy;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
+        Path base = getDataFolder().toPath();
         int questsPerDay = getConfig().getInt("quests-per-day", 3);
-        Path dataDir = getDataFolder().toPath().resolve("data");
-        storage = new QuestStorage(dataDir, questsPerDay, getLogger());
+        dailyStorage = new QuestStorage(base.resolve("data"),      questsPerDay, getLogger());
+        hardStorage  = new HardQuestStorage(base.resolve("hard"),               getLogger());
 
         economy = setupEconomy();
-        if (economy == null) {
-            getLogger().warning("Vault economy not found — money rewards disabled.");
-        }
+        if (economy == null) getLogger().warning("Vault not found — money rewards disabled.");
 
-        String newQuestsMsg     = getConfig().getString("new-quests-message",  "&6Новые ежедневные квесты доступны! Используй /dq");
-        String questCompleteMsg = getConfig().getString("quest-complete-message", "&aКвест выполнен: {quest}");
+        String newQuestsMsg     = getConfig().getString("new-quests-message",     "&6Новые ежедневные квесты доступны! Используй /dq");
+        String questCompleteMsg = getConfig().getString("quest-complete-message",  "&aКвест выполнен: {quest}");
         List<String> npcNames   = getConfig().getStringList("npc-names");
 
-        // Listeners
-        QuestProgressListener progressListener = new QuestProgressListener(
-            storage, economy, newQuestsMsg, questCompleteMsg, getLogger());
-        getServer().getPluginManager().registerEvents(progressListener, this);
-        getServer().getPluginManager().registerEvents(new NpcInteractListener(storage, npcNames), this);
+        // ── Listeners ──
+        getServer().getPluginManager().registerEvents(
+            new QuestProgressListener(dailyStorage, economy, newQuestsMsg, questCompleteMsg, getLogger()), this);
+        getServer().getPluginManager().registerEvents(
+            new HardQuestProgressListener(hardStorage, economy, getLogger()), this);
+        getServer().getPluginManager().registerEvents(
+            new NpcInteractListener(dailyStorage, npcNames), this);
 
-        // Commands
-        DailyQuestCommand cmdHandler = new DailyQuestCommand(storage);
-        getCommand("dailyquest").setExecutor(cmdHandler);
-        getCommand("dqadmin").setExecutor(cmdHandler);
+        // ── Commands ──
+        DailyQuestCommand dqCmd = new DailyQuestCommand(dailyStorage);
+        getCommand("dailyquest").setExecutor(dqCmd);
+        getCommand("dqadmin").setExecutor(dqCmd);
 
-        // Load quests for already-online players (e.g. on /reload)
+        BossQuestCommand bqCmd = new BossQuestCommand(hardStorage);
+        getCommand("bossquest").setExecutor(bqCmd);
+        getCommand("bqadmin").setExecutor(bqCmd);
+
+        // ── Load quests for already-online players (e.g. on /reload) ──
         for (Player p : Bukkit.getOnlinePlayers()) {
-            storage.ensureToday(p.getUniqueId());
+            dailyStorage.ensureToday(p.getUniqueId());
+            hardStorage.ensureCurrentPeriod(p.getUniqueId());
         }
 
-        // Midnight reset scheduler — check every minute
+        // ── Midnight reset check — every minute ──
         int resetHour = getConfig().getInt("reset-hour", 0);
         new BukkitRunnable() {
             private int lastCheckedHour = -1;
-
-            @Override
-            public void run() {
-                int currentHour = LocalDateTime.now().getHour();
-                if (currentHour == resetHour && lastCheckedHour != resetHour) {
-                    lastCheckedHour = currentHour;
+            @Override public void run() {
+                int h = LocalDateTime.now().getHour();
+                if (h == resetHour && lastCheckedHour != resetHour) {
+                    lastCheckedHour = h;
                     for (Player p : Bukkit.getOnlinePlayers()) {
-                        boolean fresh = storage.ensureToday(p.getUniqueId());
-                        if (fresh) {
+                        if (dailyStorage.ensureToday(p.getUniqueId()))
                             p.sendMessage(color(newQuestsMsg));
-                        }
+                        if (hardStorage.ensureCurrentPeriod(p.getUniqueId()))
+                            p.sendMessage("§4§l⚔ §cНовое Испытание Героя доступно! Используй /bq");
                     }
-                } else if (currentHour != resetHour) {
-                    lastCheckedHour = -1; // allow re-trigger next day
+                } else if (h != resetHour) {
+                    lastCheckedHour = -1;
                 }
             }
-        }.runTaskTimer(this, 1200L, 1200L); // every minute (1200 ticks)
+        }.runTaskTimer(this, 1200L, 1200L);
 
-        // Auto-save every 5 minutes
+        // ── Auto-save every 5 minutes ──
         new BukkitRunnable() {
-            @Override public void run() { storage.saveAll(); }
+            @Override public void run() { dailyStorage.saveAll(); hardStorage.saveAll(); }
         }.runTaskTimerAsynchronously(this, 6000L, 6000L);
 
-        getLogger().info("VoidRp Daily Quests enabled — " + questsPerDay + " quests/day per player");
+        getLogger().info("VoidRp Daily Quests enabled — daily:" + questsPerDay + " + hard:1/3d per player");
     }
 
     @Override
     public void onDisable() {
-        if (storage != null) storage.saveAll();
+        if (dailyStorage != null) dailyStorage.saveAll();
+        if (hardStorage  != null) hardStorage.saveAll();
         getLogger().info("VoidRp Daily Quests disabled — all data saved");
     }
 
     private Economy setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) return null;
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) return null;
-        return rsp.getProvider();
+        return rsp == null ? null : rsp.getProvider();
     }
 
-    private static String color(String s) {
-        return s.replace("&", "§");
-    }
+    private static String color(String s) { return s.replace("&", "§"); }
 }

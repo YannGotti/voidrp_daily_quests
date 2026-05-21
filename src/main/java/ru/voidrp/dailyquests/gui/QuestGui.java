@@ -96,6 +96,7 @@ public final class QuestGui {
             case MINE    -> Material.IRON_PICKAXE;
             case FISH    -> Material.FISHING_ROD;
             case BREED   -> Material.WHEAT;
+            case CRAFT   -> Material.CRAFTING_TABLE;
         };
     }
 

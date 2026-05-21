@@ -11,8 +11,16 @@ commands:
     usage: /dailyquest
     aliases: [dq, quests, квесты]
   dqadmin:
-    description: Администрирование квестов
-    usage: /dqadmin <reload|reset <player>|info <player>>
+    description: Администрирование ежедневных квестов
+    usage: /dqadmin <reset <player>|info <player>>
+    permission: voidrp.dailyquests.admin
+  bossquest:
+    description: Открыть Испытание Героя (1 квест на 3 дня)
+    usage: /bossquest
+    aliases: [bq, испытание]
+  bqadmin:
+    description: Администрирование испытаний
+    usage: /bqadmin <reset <player>|info <player>>
     permission: voidrp.dailyquests.admin
 
 permissions:
