@@ -1,0 +1,22 @@
+name: VoidRpDailyQuests
+version: ${version}
+main: ru.voidrp.dailyquests.VoidRpDailyQuestsPlugin
+api-version: "1.21"
+softdepend:
+  - Vault
+
+commands:
+  dailyquest:
+    description: Открыть ежедневные квесты
+    usage: /dailyquest
+    aliases: [dq, quests, квесты]
+  dqadmin:
+    description: Администрирование квестов
+    usage: /dqadmin <reload|reset <player>|info <player>>
+    permission: voidrp.dailyquests.admin
+
+permissions:
+  voidrp.dailyquests.admin:
+    default: op
+  voidrp.dailyquests.use:
+    default: true
